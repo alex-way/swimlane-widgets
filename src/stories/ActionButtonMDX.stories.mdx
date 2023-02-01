@@ -1,0 +1,12 @@
+import { html } from "lit-html";
+import { Meta, Story, Canvas } from '@storybook/addon-docs/blocks';
+
+import './ActionButton';
+
+<Meta title="Widgets/ActionButton" />
+
+<Canvas>
+  <Story name="with default" parameters={{ controls: { hideNoControlsWarning: true } }}>
+    {html`<action-button></action-button>`}
+  </Story>
+</Canvas>
