@@ -1,35 +1,35 @@
 {
-  "name": "swimlane-widgets",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "start": "storybook dev -p 6006 -s public",
-    "storybook": "storybook dev -p 6006 -s public",
-    "build-storybook": "storybook build -s public"
-  },
-  "dependencies": {
-    "@swimlane/swimlane-element": "^1.1.0",
-    "lit": "^2.4.1"
-  },
-  "devDependencies": {
-    "@storybook/addon-essentials": "^7.0.0-beta.39",
-    "@storybook/addon-links": "^7.0.0-beta.39",
-    "@storybook/blocks": "^7.0.0-beta.39",
-    "@storybook/web-components": "7.0.0-beta.39",
-    "@storybook/web-components-vite": "^7.0.0-beta.39",
-    "lit-html": "^1.4.1",
-    "msw": "^1.0.0",
-    "msw-storybook-addon": "^1.7.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "storybook": "^7.0.0-beta.39",
-    "vite": "^4.0.0"
-  },
-  "msw": {
-    "workerDirectory": "public"
-  }
+	"name": "swimlane-widgets",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"start": "storybook dev --no-open -p 6006 -s public",
+		"storybook": "storybook dev --no-open -p 6006 -s public",
+		"build-storybook": "storybook build -s public"
+	},
+	"dependencies": {
+		"@swimlane/swimlane-element": "^2.2.0",
+		"lit": "^2.4.1"
+	},
+	"devDependencies": {
+		"@storybook/addon-essentials": "^7.0.5",
+		"@storybook/addon-links": "^7.0.5",
+		"@storybook/blocks": "^7.0.5",
+		"@storybook/web-components": "7.0.5",
+		"@storybook/web-components-vite": "^7.0.5",
+		"lit-html": "^1.4.1",
+		"msw": "^1.2.1",
+		"msw-storybook-addon": "^1.8.0",
+		"react": "^18.2.0",
+		"react-dom": "^18.2.0",
+		"storybook": "^7.0.5",
+		"vite": "^4.2.1"
+	},
+	"msw": {
+		"workerDirectory": "public"
+	}
 }

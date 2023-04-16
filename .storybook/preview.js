@@ -1,7 +1,10 @@
-import "./actionbutton.css";
 import { initialize, mswDecorator } from "msw-storybook-addon";
+import { rest } from "msw";
+import "../src/index.css";
 
-initialize();
+initialize({
+	onUnhandledRequest: "bypass",
+});
 
 export const decorators = [mswDecorator];
 
@@ -12,5 +15,17 @@ export const parameters = {
 			color: /(background|color)$/i,
 			date: /Date$/,
 		},
+	},
+	msw: {
+		handlers: [
+			rest.get("/user", (req, res, ctx) => {
+				return res(
+					ctx.json({
+						firstName: "Neil",
+						lastName: "Maverick",
+					}),
+				);
+			}),
+		],
 	},
 };

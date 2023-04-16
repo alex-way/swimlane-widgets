@@ -4,11 +4,17 @@ import { defineConfig } from "vite";
 export default defineConfig({
 	build: {
 		lib: {
-			entry: "src/my-element.js",
 			formats: ["es"],
 		},
 		rollupOptions: {
 			external: /^lit/,
+		},
+	},
+	resolve: {
+		alias: {
+			"@swimlane/swimlane-element@1": "@swimlane/swimlane-element",
+			"lit-html@1": "lit",
+			$components: `${__dirname}/src/components`,
 		},
 	},
 });

@@ -9,8 +9,8 @@ import {
 	html,
 	svg,
 	unsafeCSS,
-} from "@swimlane/swimlane-element";
-import { repeat } from "lit-html/directives/repeat.js";
+} from "@swimlane/swimlane-element@1";
+import { repeat } from "lit-html@1/directives/repeat.js";
 
 const backgroundColor = "rgba(59, 68, 87, 0.75);"; // default button background color
 const backgroundColorOnHover = "#1483FF";
@@ -181,11 +181,6 @@ const widgetCss = css`
 export default class ActionButton extends SwimlaneElement {
 	static get styles() {
 		return [super.styles, widgetCss];
-	}
-
-	initialize() {
-		super.initialize();
-		actionButtons.forEach((button) => (button.isActive = false)); // reset active states
 	}
 
 	render() {

@@ -1,14 +1,17 @@
-import { html } from "lit-html";
 import { rest } from "msw";
-import "./MSWExample";
+import "$components/MSWExample";
 
+/**
+ * @type{import("@storybook/web-components").Meta}
+ */
 export default {
 	title: "Widgets/MSWExample",
-	render: (args) => {
-		return html`<msw-example></msw-example>`;
-	},
+	component: "msw-example",
 };
 
+/**
+ * @type{import("@storybook/web-components").StoryObj}
+ */
 export const Default = {
 	args: {
 		"context-data": {
@@ -41,8 +44,8 @@ Default.parameters = {
 			rest.get("/user", (req, res, ctx) => {
 				return res(
 					ctx.json({
-						firstName: "Neil",
-						lastName: "Maverick",
+						firstName: "James",
+						lastName: "Bond",
 					}),
 				);
 			}),

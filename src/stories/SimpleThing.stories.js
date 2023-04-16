@@ -1,18 +1,19 @@
-import { html } from "lit-html";
-import "./SimpleThing";
+import "$components/SimpleThing";
 
+/**
+ * @type{import("@storybook/web-components").Meta}
+ */
 export default {
-	title: "Widgets/SimpleThings",
-	render: (args) => {
-		return html`<simple-thing context-data='${JSON.stringify(
-			args["context-data"],
-		)}'></simple-thing>`;
-	},
+	title: "Widgets/SimpleThing",
+	component: "simple-thing",
 };
 
+/**
+ * @type{import("@storybook/web-components").StoryObj}
+ */
 export const Default = {
 	args: {
-		"context-data": {
+		contextData: {
 			application: {
 				id: "12345",
 			},
@@ -24,9 +25,12 @@ export const Default = {
 	},
 };
 
+/**
+ * @type{import("@storybook/web-components").StoryObj}
+ */
 export const WithData = {
 	args: {
-		"context-data": {
+		contextData: {
 			application: {
 				id: "aX3p1GZUvHfd9t7mg",
 				name: "AlienVault Ingest",
