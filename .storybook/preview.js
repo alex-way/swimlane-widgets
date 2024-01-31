@@ -1,5 +1,5 @@
-import { initialize, mswDecorator } from "msw-storybook-addon";
 import { rest } from "msw";
+import { initialize, mswDecorator } from "msw-storybook-addon";
 import "../src/index.css";
 
 initialize({
