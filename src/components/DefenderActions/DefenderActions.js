@@ -16,52 +16,65 @@ Your understanding and adherence to these guidelines are crucial for the effecti
 
 import { SwimlaneElement, css, html } from "@swimlane/swimlane-element@2";
 
-const CKB_APP_ID = "aXVg7UNfrFOMW91gX";
+const CKB_APP_FIELD_KEY = "ckb-ref";
+const MDA_APP_FIELD_KEY = "executed-defender-actions";
 const APPROVED_ACTIONS_FIELD_ID = "a5qrs";
+const APPROVED_ACTIONS_FIELD_NAME = "Approved Defender Actions";
+const SI_REF_FIELD_KEY = "si-ref";
+
+const SII_ENTITIES_FIELD_ID = "a1xod";
+
+const MDA_TASK_NAME_FIELD_ID = "a5ea9";
+const MDA_TASK_STATUS_FIELD_ID = "a7x9j";
 
 /**
  * @type {{
- * 	name: string;
- * 	script_name: string;
- * 	dependsOn: string[];
- * 	multiple_runs?: boolean;
+ * 	label: string;
+ * 	taskName: string;
+ * 	dependsOn?: string;
+ * 	dependedOnBy?: string;
+ * 	selectableEntityTypes?: string[];
  * }[]}
  */
 const availableDefenderActions = [
 	{
-		name: "Collect investigation package",
-		script_name: "mda__collect_investigation_package",
-		dependsOn: [],
+		label: "Collect investigation package",
+		taskName: "mda__collect_investigation_package",
+		selectableEntityTypes: ["host"],
 	},
 	{
-		name: "Isolate Machine",
-		script_name: "mda__isolate_machine",
-		dependsOn: [],
+		label: "Isolate Machine",
+		taskName: "mda__isolate_machine",
+		dependedOnBy: "mda__release_machine_from_isolation",
+		selectableEntityTypes: ["host"],
 	},
 	{
-		name: "Release Machine From Isolation",
-		script_name: "mda__release_machine_from_isolation",
-		dependsOn: ["mda__isolate_machine"],
+		label: "Release Machine From Isolation",
+		taskName: "mda__release_machine_from_isolation",
+		dependsOn: "mda__isolate_machine",
+		selectableEntityTypes: ["host"],
 	},
 	{
-		name: "Restrict App Execution",
-		script_name: "mda__restrict_app_execution",
-		dependsOn: [],
+		label: "Restrict App Execution",
+		taskName: "mda__restrict_app_execution",
+		dependedOnBy: "mda__remove_app_restriction",
+		selectableEntityTypes: ["host"],
 	},
 	{
-		name: "Remove App Restriction",
-		script_name: "mda__remove_app_restriction",
-		dependsOn: ["mda__restrict_app_execution"],
+		label: "Remove App Restriction",
+		taskName: "mda__remove_app_restriction",
+		dependsOn: "mda__restrict_app_execution",
+		selectableEntityTypes: ["host"],
 	},
 	{
-		name: "Run Antivirus Scan",
-		script_name: "mda__run_antivirus_scan",
-		dependsOn: [],
+		label: "Run Antivirus Scan",
+		taskName: "mda__run_antivirus_scan",
+		selectableEntityTypes: ["host"],
 	},
 	{
-		name: "Stop And Quarantine File",
-		script_name: "mda__stop_and_quarantine_file",
-		dependsOn: [],
+		label: "Stop And Quarantine File",
+		taskName: "mda__stop_and_quarantine_file",
+		selectableEntityTypes: ["host"],
 	},
 ];
 
@@ -91,25 +104,79 @@ const availableDefenderActions = [
  */
 
 /**
+ * @typedef {{
+ * 	taskName: string;
+ * 	status: string;
+ * }} PreviouslyRanAction
+ */
+
+/**
+ * 	Returns a boolean as to whether this task is disabled or not. The rules are as follows:
+ *
+ * - The action cannot run if it has dependencies and not all of the dependencies have been run
+ * - The action cannot run if it has dependencies and the main action ran before any of the dependencies
+ * - The action can run if it has no dependencies and it hasn't been run before
+ * - The action can re-run if any of the dependencies or actions that depend on it have been run
+ *
  * @param {(typeof availableDefenderActions)[number]} action
- * @param {string[]} previouslyRanActions
+ * @param {PreviouslyRanAction[]} previouslyRanActions
  *
  * @returns {boolean}
  */
-function determineActionBlocked(action, previouslyRanActions) {
-	if (action.dependsOn.length === 0) return false;
+function determineActionDisabled(action, previouslyRanActions) {
 	const mainActionIndex = previouslyRanActions.findLastIndex(
-		(value) => value === action.script_name,
+		(value) => value.taskName === action.taskName,
 	);
-	const lastDependentActionIndex = previouslyRanActions.findLastIndex((value) =>
-		action.dependsOn.includes(value),
+	const dependsOnIndex = previouslyRanActions.findLastIndex(
+		(value) => value.taskName === action.dependsOn,
 	);
 
-	// Neither action has ran previously
-	if (mainActionIndex === -1 && lastDependentActionIndex === -1) return true;
-	// None of the dependencies have ran previously
-	if (lastDependentActionIndex === -1) return true;
-	return mainActionIndex < lastDependentActionIndex;
+	const mainActionRan = mainActionIndex !== -1;
+	const hasDependencies = action.dependsOn !== undefined;
+
+	if (hasDependencies) {
+		const dependenciesRan = dependsOnIndex !== -1;
+		const dependenciesRanBeforeMainAction = dependsOnIndex < mainActionIndex;
+
+		if (dependenciesRan) {
+			return dependenciesRanBeforeMainAction;
+		}
+		return true;
+	}
+
+	const hasDependedOn = action.dependedOnBy !== undefined;
+
+	if (hasDependedOn) {
+		const dependedOnByIndex = previouslyRanActions.findLastIndex(
+			(value) => value.taskName === action.dependedOnBy,
+		);
+		const dependedOnByRan = dependedOnByIndex !== -1;
+		const dependedOnByRanAfterMainAction = dependedOnByIndex < mainActionIndex;
+
+		if (dependedOnByRan) {
+			return dependedOnByRanAfterMainAction;
+		}
+	}
+
+	return mainActionRan;
+}
+
+/**
+ *  @param {Record<string, unknown>} entity
+ *
+ *  @returns {string}
+ */
+function getLabelFromEntity(entity) {
+	const returnDefault = JSON.stringify(entity);
+	if (entity.Type === "host")
+		// @ts-ignore
+		return entity.FQDN
+			? entity.FQDN
+			: entity.HostName
+			  ? entity.HostName
+			  : returnDefault;
+
+	return returnDefault;
 }
 
 export default class extends SwimlaneElement {
@@ -138,8 +205,7 @@ export default class extends SwimlaneElement {
 				border-radius: 0;
 				font-size: 13px;
 				resize: none;
-				overflow: hidden;
-				height: 100px;
+				overflow-y: auto; /* Changed from 'hidden' to 'auto' */
 				line-height: 18px;
 				width: 100%;
 				padding: 6px;
@@ -157,11 +223,13 @@ export default class extends SwimlaneElement {
 					padding: .35em .55em;
 					position: relative;
 					width: 100%;
+					cursor: pointer;
 			}
 			.button:disabled {
 				background-color: red;
 				background: red;
 				border: 1px solid red;
+				cursor: not-allowed;
 			}
 			.label {
 				color: #dee2ea;
@@ -198,7 +266,9 @@ export default class extends SwimlaneElement {
 	static properties = {
 		_approvedActions: { state: true },
 		_selectedAction: { state: true },
+		_selectedEntity: { state: true },
 		_previouslyRanActions: { state: true },
+		_sii_records: { state: true },
 	};
 
 	constructor() {
@@ -206,8 +276,19 @@ export default class extends SwimlaneElement {
 		/** @type {string[]} */
 		this._approvedActions = [];
 
-		/** @type {string[]} */
+		/**
+		 * @type {PreviouslyRanAction[]}
+		 */
 		this._previouslyRanActions = [];
+
+		/** @type {string} */
+		this._selectedAction = "";
+
+		/** @type {string} */
+		this._selectedEntity = "";
+
+		/** @type {SwimlaneRecord[]} */
+		this._sii_records = [];
 	}
 
 	/** @type {NonNullable<import("@swimlane/swimlane-element@2").RecordProp>} */
@@ -238,16 +319,62 @@ export default class extends SwimlaneElement {
 	}
 
 	/**
+	 * @returns {string}
+	 */
+	get CKBApplicationId() {
+		const appId = this.contextData.application.fields.find(
+			(value) => value.key === CKB_APP_FIELD_KEY,
+		);
+		if (!appId) {
+			throw new Error("CKB Application ID not found");
+		}
+
+		return /** @type {string} */ (appId.targetId);
+	}
+
+	/**
+	 * @returns {string}
+	 */
+	get MDAApplicationId() {
+		const appId = this.contextData.application.fields.find(
+			(value) => value.key === MDA_APP_FIELD_KEY,
+		);
+		if (!appId) {
+			throw new Error("MDA Application ID not found");
+		}
+
+		return /** @type {string} */ (appId.targetId);
+	}
+
+	/**
+	 * @returns {string}
+	 */
+	get SIIApplicationId() {
+		const appId = this.contextData.application.fields.find(
+			(value) => value.key === SI_REF_FIELD_KEY,
+		);
+		if (!appId) {
+			throw new Error("SII Application ID not found");
+		}
+
+		return /** @type {string} */ (appId.targetId);
+	}
+
+	/**
 	 * @param {string} ckbRecordId
 	 *
 	 * @returns {Promise<string[]>}
 	 */
 	async getApprovedActions(ckbRecordId) {
-		const ckbRecord = await this.getApplicationRecord(CKB_APP_ID, ckbRecordId);
+		const ckbRecord = await this.getApplicationRecord(
+			this.CKBApplicationId,
+			ckbRecordId,
+		);
 
 		const approvedActionsField = ckbRecord.values[APPROVED_ACTIONS_FIELD_ID];
 		if (!approvedActionsField || !Array.isArray(approvedActionsField)) {
-			return [];
+			console.error("Approved actions field not found");
+			throw new Error("Approved actions field not found");
 		}
 		const approvedActions = approvedActionsField.map((action) => action.value);
 		return approvedActions;
@@ -289,37 +416,14 @@ export default class extends SwimlaneElement {
 		).then((res) => res.json());
 	}
 
-	// /**
-	//  * Gets a list of hashes from the source SII records
-	//  *
-	//  * @param {string[]} sourceRecordIds
-	//  *
-	//  * @returns {Promise<string[]>}
-	//  */
-	// async fetchHashes(sourceRecordIds) {
-	// 	if (!this.contextData || !this.SIApplicationId) {
-	// 		return Promise.resolve([]);
-	// 	}
-
-	// 	return sourceRecordIds.map((sourcerecordid) =>
-	// 		getRecord(
-	// 			this.contextData.origin,
-	// 			this.contextData.token,
-	// 			this.SIApplicationId,
-	// 			sourcerecordid,
-	// 		)
-	// 			.then((data) => {
-	// 				// Print ips variable in JSON format
-	// 				return data;
-	// 			})
-	// 			.catch((error) => console.error("Error:", error)),
-	// 	);
-	// }
-
 	get investigationPackageResponse() {
+		const investigationPackageResponse =
+			/** @type {string | undefined} */ (
+				this.notNullRecord["defender-investigation-package-response"]
+			) || "";
 		try {
 			const parsedJson = JSON.parse(
-				this.notNullRecord["defender-investigation-package-response"]
+				investigationPackageResponse
 					.replace(/None/g, "null")
 					.replace(/'/g, '"'),
 			);
@@ -327,23 +431,53 @@ export default class extends SwimlaneElement {
 				([key, value]) => html`<li>${key}: ${value}`,
 			);
 		} catch (error) {
-			return html`<li>${this.notNullRecord["defender-investigation-package-response"]}</li>`;
+			return html`<li>${investigationPackageResponse}</li>`;
 		}
 	}
 
-	render() {
-		const ckbRecordId = this.notNullRecord["ckb-record-id"];
-		//@ts-ignore
-		this.getApprovedActions(ckbRecordId).then((approvedActions) => {
-			this._approvedActions = approvedActions;
-		});
+	async getSiiRecords() {
+		const siRefs =
+			/** @type {string[] | undefined} */ (
+				this.notNullRecord[SI_REF_FIELD_KEY]
+			) || [];
 
+		const promises = siRefs.map((siRef) => {
+			return this.getApplicationRecord(this.SIIApplicationId, siRef);
+		});
+		return Promise.all(promises);
+	}
+
+	/**
+	 * @returns {Record<string, unknown>[]}
+	 */
+	get entities() {
+		/** @type {Record<string, unknown>[]} */
+		const entities = this._sii_records
+			.map((record) => record.values[SII_ENTITIES_FIELD_ID] || "[]")
+			// @ts-ignore
+			.flatMap((value) => JSON.parse(value));
+		const entitiesWithType = entities.filter((value) => value.Type);
+		return entitiesWithType;
+	}
+
+	get relevantEntitiesForAction() {
+		return this.entities.filter((entity) => {
+			const selectedAction = availableDefenderActions.find(
+				(action) => action.taskName === this._selectedAction,
+			);
+
+			if (!selectedAction) return false;
+			// @ts-ignore
+			return (selectedAction.selectableEntityTypes || []).includes(entity.Type);
+		});
+	}
+
+	render() {
 		if (!this._approvedActions) {
 			return html`<div>Loading...</div>`;
 		}
 
-		const isSentinelSource =
-			this.notNullRecord.source_application_id === this.SIApplicationId || true;
+		const isSentinelSource = this._sii_records.length > 0;
 		// Show the widget only if the source application is SII
 		if (isSentinelSource) {
 			return this.template();
@@ -367,21 +501,24 @@ export default class extends SwimlaneElement {
 		);
 
 		if (confirmedAction) {
-			this.addComment(
-				"defender-action-to-run",
-				`${selectInputName} Defender action has been executed.`,
-			);
-			//this.updateRecordValue("executed-defender-actions-list", selectInputName)
 			this.updateRecordValue("defender-action-to-run", selectInputValue);
-			// Save record
 			this.triggerSave();
 
-			// Delay the execution of the following code by 2 seconds
+			this._previouslyRanActions = [
+				...this._previouslyRanActions,
+				{
+					taskName: selectInputValue,
+					status: "Pending",
+				},
+			];
+
+			this._selectedAction = "";
+
 			setTimeout(() => {
 				//Update to a Temp value to allow running second time
-				this.updateRecordValue("defender-action-to-run", "Temp");
+				this.updateRecordValue("defender-action-to-run", "");
 				this.triggerSave();
-			}, 2000); // Delay of 2000 milliseconds (2 seconds)
+			}, 2000);
 		}
 	}
 
@@ -411,16 +548,153 @@ export default class extends SwimlaneElement {
 			</div>`;
 	}
 
+	selectableActionsTemplate() {
+		if (!this._selectedEntity) return html``;
+
+		return html`
+		<select id="action_sel" class="custom-select" .value=${
+			this._selectedAction
+		} @change=${(/**@type {Event} */ e) => {
+			this._selectedAction = /** @type {HTMLSelectElement} */ (e.target).value;
+		}}>
+			<option value="" selected>Select Action</option>
+			<optgroup label="MachineAction resource type">
+				${availableDefenderActions.map(
+					(option) =>
+						html`<option value="${option.taskName}" ?disabled=${
+							!this._approvedActions
+								.map((v) => v.toLowerCase())
+								.includes(option.label.toLowerCase()) ||
+							option.label === this.notNullRecord["defender-action-to-run"] ||
+							determineActionDisabled(option, this._previouslyRanActions)
+						}>${option.label}</option>`,
+				)}
+			</optgroup>
+		</select>`;
+	}
+
+	selectableEntitiesTemplate() {
+		if (!this.relevantEntitiesForAction)
+			return html`There are no selectable entities for this action`;
+
+		return html`
+		<select id="entity_sel" class="custom-select" .value=${
+			this._selectedEntity
+		} @change=${(/**@type {Event} */ e) => {
+			this._selectedEntity = /** @type {HTMLSelectElement} */ (e.target).value;
+		}}>
+			<option value="" selected>Select Entity</option>
+			${this.relevantEntitiesForAction.map(
+				(option) =>
+					html`<option value="${getLabelFromEntity(
+						option,
+					)}">${getLabelFromEntity(option)}</option>`,
+			)}
+		</select>`;
+	}
+
+	noSentinelIncidentsTemplate() {
+		return html`<div>No Sentinel Incidents found</div>`;
+	}
+
+	noApprovedActionsTemplate() {
+		return html`<div>The customer hasn't approved any actions</div>`;
+	}
+
+	actionInProgressTemplate() {
+		return html`<div>Action in progress. Polling every 5 seconds until completed.</div>`;
+	}
+
+	/**
+	 * @returns {boolean}
+	 */
+	get anyActionInProgress() {
+		return this._previouslyRanActions.some(
+			(action) => action.status === "Pending",
+		);
+	}
+
+	/**
+	 * @returns {Promise<PreviouslyRanAction[]>}
+	 */
+	async getPreviouslyRanActions() {
+		const previouslyRanActions =
+			/** @type {string[] | undefined} */ (
+				this.notNullRecord["executed-defender-actions"]
+			) || [];
+		if (!previouslyRanActions) {
+			return [];
+		}
+		const promises = previouslyRanActions.map(async (MdaId) => {
+			return this.getApplicationRecord(this.MDAApplicationId, MdaId).then(
+				(record) => {
+					/**@type {string} */
+					//@ts-ignore
+					const taskName = record.values[MDA_TASK_NAME_FIELD_ID] || "";
+					/**@type {string} */
+					//@ts-ignore
+					const status = record.values[MDA_TASK_STATUS_FIELD_ID] || "";
+					return { taskName, status };
+				},
+			);
+		});
+		return Promise.all(promises);
+	}
+
+	firstUpdated() {
+		const ckbRecordId = /** @type {string} */ (
+			this.notNullRecord["ckb-record-id"]
+		);
+		this.getApprovedActions(ckbRecordId).then((approvedActions) => {
+			this._approvedActions = approvedActions;
+		});
+		this.getPreviouslyRanActions().then((previouslyRanActions) => {
+			this._previouslyRanActions = previouslyRanActions;
+		});
+		this.getSiiRecords().then((siiRecords) => {
+			this._sii_records = siiRecords;
+		});
+	}
+
+	/** @param {Parameters<import("@swimlane/swimlane-element@2").SwimlaneElement["updated"]>[0]} changedProperties  */
+	updated(changedProperties) {
+		if (this.anyActionInProgress) {
+			setTimeout(() => {
+				this.getPreviouslyRanActions().then((previouslyRanActions) => {
+					this._previouslyRanActions = previouslyRanActions;
+				});
+			}, 5000);
+		}
+	}
+
 	template() {
+		if (this.anyActionInProgress) return this.actionInProgressTemplate();
+		const siRefs =
+			/** @type {string[] | undefined} */ (
+				this.notNullRecord[SI_REF_FIELD_KEY]
+			) || [];
+		const sentinelIncidentCount = siRefs.length;
+		if (sentinelIncidentCount === 0) return this.noSentinelIncidentsTemplate();
+
+		if (this._approvedActions.length === 0)
+			return this.noApprovedActionsTemplate();
+
 		return html`
 			<div class="widget">
 				<div class="col">
 				${this.helpTextTemplate()}
 					${this.selectableActionsTemplate()}
+					${this.selectableEntitiesTemplate()}
 					<button id="run_action" class="button" @click="${
 						this.handleRunAction
 					}" ?disabled=${!this._selectedAction}
-					>${this._selectedAction ? "Run Action" : "Select an action"}</button>
+					>${
+						this.anyActionInProgress
+							? "Running action..."
+							: this._selectedAction
+							  ? "Run Action"
+							  : "Select an action"
+					}</button>
 					<label class="label">Investigation package response:</label>
 					<div id="investigationPackageTextArea" rows="1" class="custom-area">
 						<ul>
@@ -429,23 +703,5 @@ export default class extends SwimlaneElement {
 					</div>
 				</div>
 			</div>`;
-	}
-
-	selectableActionsTemplate() {
-		return html`
-		<select id="action_sel" class="custom-select" @change=${(e) =>
-			(this._selectedAction = e.target.value)} >
-			<option value="" selected>Select Action</option>
-			<optgroup label="MachineAction resource type">
-				${availableDefenderActions.map(
-					(option) =>
-						html`<option value="${option.script_name}" ?disabled=${
-							!this._approvedActions.includes(option.name) ||
-							option.name === this.notNullRecord["defender-action-to-run"] ||
-							determineActionBlocked(option, this._previouslyRanActions)
-						}>${option.name}</option>`,
-				)}
-			</optgroup>
-		</select>`;
 	}
 }

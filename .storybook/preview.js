@@ -1,5 +1,5 @@
 import { rest } from "msw";
-import { initialize, mswDecorator } from "msw-storybook-addon";
+import { initialize, mswDecorator, mswLoader } from "msw-storybook-addon";
 import "../src/index.css";
 
 initialize({
@@ -29,3 +29,10 @@ export const parameters = {
 		],
 	},
 };
+
+const preview = {
+	parameters: {},
+	loaders: [mswLoader],
+};
+
+export default preview;
