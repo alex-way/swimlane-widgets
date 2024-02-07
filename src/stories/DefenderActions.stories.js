@@ -2126,7 +2126,68 @@ function createMDARecordResponse(scriptName) {
 	};
 }
 
-function createSIIRecordResponse() {
+function createSIIRecordResponse(
+	entities = [
+		{
+			$id: "2",
+			Directory: "C:\\Users\\DefenderTestAdmin\\AppData\\Local\\Temp",
+			Name: "a2f2ffd2-42cd-491f-998f-a2e3c98a6305.tmp",
+			FileHashes: [
+				{
+					$id: "3",
+					Algorithm: "SHA1",
+					Value: "3395856ce81f2b7382dee72602f798b642f14140",
+					Type: "filehash",
+				},
+				{
+					$id: "4",
+					Algorithm: "MD5",
+					Value: "44d88612fea8a8f36de82e1278abb02f",
+					Type: "filehash",
+				},
+				{
+					$id: "5",
+					Algorithm: "SHA256",
+					Value:
+						"275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f",
+					Type: "filehash",
+				},
+			],
+			Type: "file",
+		},
+		{ $ref: "3" },
+		{ $ref: "4" },
+		{ $ref: "5" },
+		{ $id: "6", Url: "https://secure.eicar.org/eicar.com", Type: "url" },
+		{
+			$id: "7",
+			Directory: "C:\\Users\\DefenderTestAdmin\\Downloads",
+			Name: "eicar.test.com",
+			FileHashes: [{ $ref: "3" }, { $ref: "4" }, { $ref: "5" }],
+			Type: "file",
+		},
+		{
+			$id: "8",
+			HostName: "defendertestmac",
+			OSFamily: "Windows",
+			OSVersion: "22H2",
+			Type: "host",
+			MdatpDeviceId: "3d538859b507c85ca5b30614fffe50911de8a9e1",
+			FQDN: "defendertestmac",
+			AadDeviceId: "869689b6-6352-4a53-81d9-c84a9f269ca4",
+			RiskScore: "Medium",
+			HealthStatus: "Active",
+			LastSeen: "2023-09-15T13:18:51.603875",
+			LastExternalIpAddress: "20.26.113.135",
+			LastIpAddress: "10.2.0.6",
+			AvStatus: "Updated",
+			OnboardingStatus: "Onboarded",
+			LoggedOnUsers: [
+				{ AccountName: "DefenderTestAdmin", DomainName: "DefenderTestMac" },
+			],
+		},
+	],
+) {
 	return {
 		$type: "Core.Models.Record.Record, Core",
 		name: "SII-34472",
@@ -2158,66 +2219,7 @@ function createSIIRecordResponse() {
 			aVTiNmsh1OZ_7XhfZ: "",
 			aV9lkANvKXmUQjX6J: "",
 			aUqp5Yu8dgyzjvMY3: "",
-			a1xod: JSON.stringify([
-				{
-					$id: "2",
-					Directory: "C:\\Users\\DefenderTestAdmin\\AppData\\Local\\Temp",
-					Name: "a2f2ffd2-42cd-491f-998f-a2e3c98a6305.tmp",
-					FileHashes: [
-						{
-							$id: "3",
-							Algorithm: "SHA1",
-							Value: "3395856ce81f2b7382dee72602f798b642f14140",
-							Type: "filehash",
-						},
-						{
-							$id: "4",
-							Algorithm: "MD5",
-							Value: "44d88612fea8a8f36de82e1278abb02f",
-							Type: "filehash",
-						},
-						{
-							$id: "5",
-							Algorithm: "SHA256",
-							Value:
-								"275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f",
-							Type: "filehash",
-						},
-					],
-					Type: "file",
-				},
-				{ $ref: "3" },
-				{ $ref: "4" },
-				{ $ref: "5" },
-				{ $id: "6", Url: "https://secure.eicar.org/eicar.com", Type: "url" },
-				{
-					$id: "7",
-					Directory: "C:\\Users\\DefenderTestAdmin\\Downloads",
-					Name: "eicar.test.com",
-					FileHashes: [{ $ref: "3" }, { $ref: "4" }, { $ref: "5" }],
-					Type: "file",
-				},
-				{
-					$id: "8",
-					HostName: "defendertestmac",
-					OSFamily: "Windows",
-					OSVersion: "22H2",
-					Type: "host",
-					MdatpDeviceId: "3d538859b507c85ca5b30614fffe50911de8a9e1",
-					FQDN: "defendertestmac",
-					AadDeviceId: "869689b6-6352-4a53-81d9-c84a9f269ca4",
-					RiskScore: "Medium",
-					HealthStatus: "Active",
-					LastSeen: "2023-09-15T13:18:51.603875",
-					LastExternalIpAddress: "20.26.113.135",
-					LastIpAddress: "10.2.0.6",
-					AvStatus: "Updated",
-					OnboardingStatus: "Onboarded",
-					LoggedOnUsers: [
-						{ AccountName: "DefenderTestAdmin", DomainName: "DefenderTestMac" },
-					],
-				},
-			]),
+			a1xod: JSON.stringify(entities),
 			aUCvoKvbEzMzLI1QY: "",
 			aTtz9jQpY7ZTeTrsI: "",
 			aTa1W6x2rGlyxfhJ2: "",
@@ -2486,6 +2488,75 @@ NoSIRecordsActions.parameters = {
 							createMDARecordResponse("mda__collect_investigation_package"),
 						),
 					);
+				},
+			),
+		],
+	},
+};
+
+/**
+ * @type{import("@storybook/web-components").Meta}
+ */
+export const NoEntities = {
+	args: {
+		contextData: createContextData(),
+		record: createRecord(),
+	},
+};
+
+NoEntities.parameters = {
+	msw: {
+		handlers: [
+			rest.get(
+				"https://soc.cloudsoftcat.com/api/app/aXVg7UNfrFOMW91gX/record/aIGAGs_GJ3HvT5ppX",
+				(req, res, ctx) => {
+					return res(
+						ctx.json(
+							createCKBRecordResponse([
+								{
+									$type: "Core.Models.Record.ValueSelection, Core",
+									id: "65b8bb4900f7749e529a2e37",
+									value: "Collect investigation package",
+								},
+								{
+									$type: "Core.Models.Record.ValueSelection, Core",
+									id: "65b8bb4900f7749e529a2e38",
+									value: "Isolate Machine",
+								},
+								{
+									$type: "Core.Models.Record.ValueSelection, Core",
+									id: "65b8bb4900f7749e529a2e38",
+									value: "Release Machine From Isolation",
+								},
+								{
+									$type: "Core.Models.Record.ValueSelection, Core",
+									id: "65b8bb4900f7749e529a2e38",
+									value: "Restrict App Execution",
+								},
+								{
+									$type: "Core.Models.Record.ValueSelection, Core",
+									id: "65b8bb4900f7749e529a2e38",
+									value: "Remove App Restriction",
+								},
+								{
+									$type: "Core.Models.Record.ValueSelection, Core",
+									id: "65b8bb4900f7749e529a2e38",
+									value: "Run Antivirus Scan",
+								},
+								{
+									$type: "Core.Models.Record.ValueSelection, Core",
+									id: "65b8bb4900f7749e529a2e38",
+									value: "Stop And Quarantine File",
+								},
+							]),
+						),
+					);
+				},
+			),
+			rest.get(
+				"https://soc.cloudsoftcat.com/api/app/aJGV_FhnG7LvsC1q0/record/siref1",
+				(req, res, ctx) => {
+					return res(ctx.json(createSIIRecordResponse([])));
 				},
 			),
 		],

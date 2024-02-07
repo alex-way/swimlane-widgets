@@ -21,6 +21,7 @@ const MDA_APP_FIELD_KEY = "executed-defender-actions";
 const APPROVED_ACTIONS_FIELD_ID = "a5qrs";
 const APPROVED_ACTIONS_FIELD_NAME = "Approved Defender Actions";
 const SI_REF_FIELD_KEY = "si-ref";
+const MDA_LAUNCHED_BY_FIELD_KEY = "defender-action-launched-by";
 
 const SII_ENTITIES_FIELD_ID = "a1xod";
 
@@ -33,48 +34,55 @@ const MDA_TASK_STATUS_FIELD_ID = "a7x9j";
  * 	taskName: string;
  * 	dependsOn?: string;
  * 	dependedOnBy?: string;
- * 	selectableEntityTypes?: string[];
+ * 	canRunMultipleTimes: boolean;
  * }[]}
  */
 const availableDefenderActions = [
 	{
 		label: "Collect investigation package",
 		taskName: "mda__collect_investigation_package",
-		selectableEntityTypes: ["host"],
+		canRunMultipleTimes: false,
+		dependedOnBy: "mda__get_investigation_package",
+	},
+	{
+		label: "Get investigation package",
+		taskName: "mda__get_investigation_package",
+		canRunMultipleTimes: true,
+		dependsOn: "mda__collect_investigation_package",
 	},
 	{
 		label: "Isolate Machine",
 		taskName: "mda__isolate_machine",
+		canRunMultipleTimes: false,
 		dependedOnBy: "mda__release_machine_from_isolation",
-		selectableEntityTypes: ["host"],
 	},
 	{
 		label: "Release Machine From Isolation",
 		taskName: "mda__release_machine_from_isolation",
+		canRunMultipleTimes: false,
 		dependsOn: "mda__isolate_machine",
-		selectableEntityTypes: ["host"],
 	},
 	{
 		label: "Restrict App Execution",
 		taskName: "mda__restrict_app_execution",
+		canRunMultipleTimes: false,
 		dependedOnBy: "mda__remove_app_restriction",
-		selectableEntityTypes: ["host"],
 	},
 	{
 		label: "Remove App Restriction",
 		taskName: "mda__remove_app_restriction",
+		canRunMultipleTimes: false,
 		dependsOn: "mda__restrict_app_execution",
-		selectableEntityTypes: ["host"],
 	},
 	{
 		label: "Run Antivirus Scan",
 		taskName: "mda__run_antivirus_scan",
-		selectableEntityTypes: ["host"],
+		canRunMultipleTimes: false,
 	},
 	{
 		label: "Stop And Quarantine File",
 		taskName: "mda__stop_and_quarantine_file",
-		selectableEntityTypes: ["host"],
+		canRunMultipleTimes: false,
 	},
 ];
 
@@ -267,6 +275,7 @@ export default class extends SwimlaneElement {
 		_approvedActions: { state: true },
 		_selectedAction: { state: true },
 		_selectedEntity: { state: true },
+		_selectedEntityType: { state: true },
 		_previouslyRanActions: { state: true },
 		_sii_records: { state: true },
 	};
@@ -286,6 +295,9 @@ export default class extends SwimlaneElement {
 
 		/** @type {string} */
 		this._selectedEntity = "";
+
+		/** @type {string} */
+		this._selectedEntityType = "";
 
 		/** @type {SwimlaneRecord[]} */
 		this._sii_records = [];
@@ -456,33 +468,28 @@ export default class extends SwimlaneElement {
 			.map((record) => record.values[SII_ENTITIES_FIELD_ID] || "[]")
 			// @ts-ignore
 			.flatMap((value) => JSON.parse(value));
+		console.log({ entities });
 		const entitiesWithType = entities.filter((value) => value.Type);
+		console.log({ entitiesWithType });
 		return entitiesWithType;
 	}
 
-	get relevantEntitiesForAction() {
-		return this.entities.filter((entity) => {
-			const selectedAction = availableDefenderActions.find(
-				(action) => action.taskName === this._selectedAction,
-			);
+	get selectableEntities() {
+		return this.entities.filter((entity) => entity.Type === "host");
+	}
 
-			if (!selectedAction) return false;
-			// @ts-ignore
-			return (selectedAction.selectableEntityTypes || []).includes(entity.Type);
-		});
+	get selectableActions() {
+		return this._approvedActions;
 	}
 
 	render() {
-		if (!this._approvedActions) {
-			return html`<div>Loading...</div>`;
-		}
-
 		const isSentinelSource = this._sii_records.length > 0;
 		// Show the widget only if the source application is SII
-		if (isSentinelSource) {
-			return this.template();
-		}
-		return html`<div>Only for Sentinel</div>`;
+		if (!isSentinelSource) return this.notSentinelSourceTemlate();
+
+		if (this.selectableEntities.length === 0) return this.noEntitiesTemplate();
+
+		return this.template();
 	}
 
 	handleRunAction() {
@@ -502,6 +509,10 @@ export default class extends SwimlaneElement {
 
 		if (confirmedAction) {
 			this.updateRecordValue("defender-action-to-run", selectInputValue);
+			this.updateRecordValue(
+				"defender-action-launched-by",
+				this.contextData.currentUser.id,
+			);
 			this.triggerSave();
 
 			this._previouslyRanActions = [
@@ -511,14 +522,6 @@ export default class extends SwimlaneElement {
 					status: "Pending",
 				},
 			];
-
-			this._selectedAction = "";
-
-			setTimeout(() => {
-				//Update to a Temp value to allow running second time
-				this.updateRecordValue("defender-action-to-run", "");
-				this.triggerSave();
-			}, 2000);
 		}
 	}
 
@@ -548,6 +551,18 @@ export default class extends SwimlaneElement {
 			</div>`;
 	}
 
+	noEntitiesTemplate() {
+		return html`<div>No entities found</div>`;
+	}
+
+	notSentinelSourceTemlate() {
+		return html`<div>Only for Sentinel</div>`;
+	}
+
+	loadingTemplate() {
+		return html`<div>Loading...</div>`;
+	}
+
 	selectableActionsTemplate() {
 		if (!this._selectedEntity) return html``;
 
@@ -562,7 +577,7 @@ export default class extends SwimlaneElement {
 				${availableDefenderActions.map(
 					(option) =>
 						html`<option value="${option.taskName}" ?disabled=${
-							!this._approvedActions
+							!this.selectableActions
 								.map((v) => v.toLowerCase())
 								.includes(option.label.toLowerCase()) ||
 							option.label === this.notNullRecord["defender-action-to-run"] ||
@@ -574,7 +589,7 @@ export default class extends SwimlaneElement {
 	}
 
 	selectableEntitiesTemplate() {
-		if (!this.relevantEntitiesForAction)
+		if (!this.selectableEntities)
 			return html`There are no selectable entities for this action`;
 
 		return html`
@@ -582,9 +597,16 @@ export default class extends SwimlaneElement {
 			this._selectedEntity
 		} @change=${(/**@type {Event} */ e) => {
 			this._selectedEntity = /** @type {HTMLSelectElement} */ (e.target).value;
+			// @ts-ignore
+			// biome-ignore lint/complexity/useOptionalChain: <explanation>
+			this._selectedEntityType = (
+				this.entities.find(
+					(entity) => getLabelFromEntity(entity) === this._selectedEntity,
+				) || {}
+			).Type;
 		}}>
 			<option value="" selected>Select Entity</option>
-			${this.relevantEntitiesForAction.map(
+			${this.selectableEntities.map(
 				(option) =>
 					html`<option value="${getLabelFromEntity(
 						option,
@@ -679,28 +701,27 @@ export default class extends SwimlaneElement {
 		if (this._approvedActions.length === 0)
 			return this.noApprovedActionsTemplate();
 
-		return html`
-			<div class="widget">
-				<div class="col">
-				${this.helpTextTemplate()}
-					${this.selectableActionsTemplate()}
-					${this.selectableEntitiesTemplate()}
-					<button id="run_action" class="button" @click="${
+		const submit =
+			this._selectedEntity && this._selectedAction
+				? html`<button id="run_action" class="button" @click="${
 						this.handleRunAction
-					}" ?disabled=${!this._selectedAction}
+				  }" ?disabled=${!this._selectedAction}
 					>${
 						this.anyActionInProgress
 							? "Running action..."
 							: this._selectedAction
 							  ? "Run Action"
 							  : "Select an action"
-					}</button>
-					<label class="label">Investigation package response:</label>
-					<div id="investigationPackageTextArea" rows="1" class="custom-area">
-						<ul>
-							${this.investigationPackageResponse}
-						</ul>
-					</div>
+					}</button>`
+				: "";
+
+		return html`
+			<div class="widget">
+				<div class="col">
+					${this.helpTextTemplate()}
+					${this.selectableEntitiesTemplate()}
+					${this.selectableActionsTemplate()}
+					${submit}
 				</div>
 			</div>`;
 	}
